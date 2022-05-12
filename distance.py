@@ -10,6 +10,12 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtGui import QPixmap, QFont
 from PyQt5.QtCore import pyqtSignal, pyqtSlot, Qt, QThread
 
+font                   = cv2.FONT_HERSHEY_SIMPLEX
+position               = (10,50)
+fontScale              = 2
+fontColor              = (255,255,0)
+
+
 
 cam = cv2.VideoCapture(0)
 cam.set(3, 360)
@@ -58,10 +64,19 @@ while (cam.isOpened()):  # wait until the camera is open
     print(cX, cY)
     
     cv2.circle(img, (cX, cY), 7, (0, 0, 255), -1)
+    
     # cv2.rectangle(img, (int(cX - 35), int(cY - 35)), (int(cX + 35), int(cY + 35)), (255, 0, 0), 2)
     # cv2.circle(img, (int(cX), int(cY)), 3, (255, 0, 0), 6)
     # cv2.rectangle(img, (int(cX - 35), int(cY - 35)), (int(cX + 35), int(cY + 35)), (255, 0, 0), 2)
     #(this is necessary to avoid Python kernel form crashing)
+    distance = str((cX - 144) * 0.22)
+
+
+    cv2.putText(img, distance,
+        position,
+        font,
+        fontScale,
+        fontColor)
     cv2.imshow("Original",img)
     if cv2.waitKey(1) & 0XFF ==ord('q'):
         break
