@@ -5,17 +5,19 @@ import math
 import time
 import csv
 import sympy
+import serial
 from PyQt5 import QtGui
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import QPixmap, QFont
 from PyQt5.QtCore import pyqtSignal, pyqtSlot, Qt, QThread
+arduino = serial.Serial(port='COM30', baudrate=115200, timeout=.1)
 
 font                   = cv2.FONT_HERSHEY_SIMPLEX
 position               = (10,50)
 fontScale              = 2
 fontColor              = (255,255,0)
 
-
+t2Old = -2
 
 cam = cv2.VideoCapture(0)
 cam.set(3, 360)
@@ -24,14 +26,29 @@ cam.set(4, 480)
 old_contours = [100,100]
 targetPosition = 0
 Kp = 1
-Ki = 1
-Kd = 0
+Ki = 0
+Kd = 0.05
 errorPositionOld = 0
 sumError = 0
-        
-# print("old X:" + str(globals.degreeX_old) + ", old Y:" + str(globals.degreeY_old))
+initializerTime = 1
+
+def write_read(x):
+    arduino.write(bytes(x, 'utf-8'))
+    time.sleep(0.01)
+    # data = arduino.readline()
+    # return data        
+
+    
 while (cam.isOpened()):  # wait until the camera is open
-    t1 = time.process_time()
+    if initializerTime==1:
+        timeStart = time.time()
+        initializerTime+=1
+        timeNow = 0
+    else:
+        timeNow = time.time() - timeStart
+        
+
+    t1 = time.time()
     ret, img = cam.read()
     img = img[0:260, 80:370]    
     HSV = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
@@ -81,15 +98,29 @@ while (cam.isOpened()):  # wait until the camera is open
     positionNow = float(distance)
     
     errorPosition = targetPosition -  positionNow
-    controlSignal = Kp* errorPosition + Kd * (errorPositionOld - errorPosition) + Ki *  sumError 
+    p = Kp* errorPosition
+    d = Kd * (errorPosition - errorPositionOld)/0.05
+    i = Ki *  sumError
+    controlSignal = p + i + d
     controlSignal = -controlSignal 
-    sumError = sumError + errorPosition/100
+    sumError = sumError + abs(errorPosition)/100
     errorPositionOld = errorPosition
     
-    t2 = time.process_time()
-    processingTime = t2-t1
+    t2 = time.time()
+    
+    processingTime = t2Old-t2
+    frequency = 1/processingTime
+    t2Old = t2
+    
+    controlSignal = str(round(float(controlSignal)))
+    timeNow = str(round(timeNow,2))
+    
+    write_read(controlSignal)
 
-    print(distance, controlSignal, errorPosition, sumError, processingTime)
+
+    
+
+    print(distance, controlSignal, p ,i, d)
 
     cv2.putText(img, distance,
         position,
@@ -99,3 +130,5 @@ while (cam.isOpened()):  # wait until the camera is open
     cv2.imshow("PID Position Control",img)
     if cv2.waitKey(1) & 0XFF ==ord('q'):
         break
+
+    
